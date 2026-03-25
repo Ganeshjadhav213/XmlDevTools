@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("XmlTool")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a25c3af7d38986ab8520eaed5f8e3839e83cc0cb")]
 [assembly: System.Reflection.AssemblyProductAttribute("XmlTool")]
 [assembly: System.Reflection.AssemblyTitleAttribute("XmlTool")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
