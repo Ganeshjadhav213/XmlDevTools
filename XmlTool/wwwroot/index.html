@@ -1,0 +1,333 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>XML DevTools</title>
+
+    <script src="https://unpkg.com/monaco-editor@latest/min/vs/loader.js"></script>
+
+    <style>
+
+        body {
+            background: #0f172a;
+            color: white;
+            font-family: Segoe UI;
+            margin: 0;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #020617;
+            padding: 14px 25px;
+            border-bottom: 1px solid #1f2937;
+        }
+
+        .logo {
+            color: #22c55e;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .menu a {
+            margin-left: 20px;
+            color: #94a3b8;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+            .menu a.active {
+                color: white;
+            }
+
+        .container {
+            padding: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            background: #020617;
+            color: #22c55e;
+            border: 1px solid #374151;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        button {
+            background: #2563eb;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            color: white;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background: #1d4ed8;
+            }
+
+        .cardRow {
+            display: flex;
+            gap: 20px;
+        }
+
+        .card {
+            flex: 1;
+            background: #111827;
+            padding: 15px;
+            border-radius: 12px;
+        }
+
+        .drop {
+            border: 2px dashed #374151;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 10px;
+            border-radius: 8px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="navbar">
+        <div class="logo">XML DEVTOOLS</div>
+
+        <div class="menu">
+            <a id="menuCompare" class="active" onclick="showScreen('compare')">Compare</a>
+            <a id="menuFormatter" onclick="showScreen('formatter')">Formatter</a>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- ================= COMPARE SCREEN ================= -->
+        <div id="compareScreen">
+
+            <div class="cardRow">
+
+                <div class="card">
+
+                    <h3>XML A</h3>
+
+                    <div id="dropA" class="drop">Drag XML A here</div>
+
+                    <input type="file" id="fileInputA" hidden onchange="loadFileA(event)">
+                    <button onclick="fileInputA.click()">Upload</button>
+
+                    <div id="fileNameA" style="font-size:12px;color:#aaa;"></div>
+
+<textarea id="xmlA"></textarea>
+
+                </div>
+
+                <div class="card">
+
+                    <h3>XML B</h3>
+
+                    <div id="dropB" class="drop">Drag XML B here</div>
+
+                    <input type="file" id="fileInputB" hidden onchange="loadFileB(event)">
+                    <button onclick="fileInputB.click()">Upload</button>
+
+                    <div id="fileNameB" style="font-size:12px;color:#aaa;"></div>
+
+<textarea id="xmlB"></textarea>
+
+                </div>
+
+            </div>
+
+            <br>
+
+            <button onclick="beautifyA()">Beautify A</button>
+            <button onclick="beautifyB()">Beautify B</button>
+            <button onclick="runCompare()">Compare</button>
+            <button onclick="swapXml()">Swap</button>
+            <button onclick="acceptRight()">Merge Right</button>
+            <button onclick="clearAll()">Reset</button>
+
+            <br><br>
+
+            <div id="diffEditor" style="height:520px;border:1px solid #374151;"></div>
+
+        </div>
+
+        <!-- ================= FORMATTER SCREEN ================= -->
+        <div id="formatterScreen" style="display:none;">
+
+            <h2>XML Formatter</h2>
+
+<textarea id="formatterInput"></textarea>
+
+            <br><br>
+
+            <button onclick="formatOnly()">Beautify</button>
+
+<pre id="formatterOutput"></pre>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@latest/min/vs' } });
+
+        let diffEditor;
+        let originalModel;
+        let modifiedModel;
+
+        require(['vs/editor/editor.main'], function () {
+
+            diffEditor = monaco.editor.createDiffEditor(
+                document.getElementById('diffEditor'),
+                { theme: 'vs-dark', automaticLayout: true });
+
+            originalModel = monaco.editor.createModel("", "xml");
+            modifiedModel = monaco.editor.createModel("", "xml");
+
+            diffEditor.setModel({ original: originalModel, modified: modifiedModel });
+
+        });
+
+        function showScreen(screen) {
+
+            compareScreen.style.display = "none";
+            formatterScreen.style.display = "none";
+
+            menuCompare.classList.remove("active");
+            menuFormatter.classList.remove("active");
+
+            if (screen === "compare") {
+                compareScreen.style.display = "block";
+                menuCompare.classList.add("active");
+            }
+
+            if (screen === "formatter") {
+                formatterScreen.style.display = "block";
+                menuFormatter.classList.add("active");
+            }
+
+        }
+
+        async function runCompare() {
+
+            let a = xmlA.value;
+            let b = xmlB.value;
+
+            let res = await fetch("/comparexml", { method: "POST", body: a + "|||" + b });
+            let data = await res.json();
+
+            originalModel.setValue(data.xmlA);
+            modifiedModel.setValue(data.xmlB);
+
+        }
+
+        async function beautifyA() {
+            let res = await fetch("/formatxml", { method: "POST", body: xmlA.value });
+            xmlA.value = await res.text();
+        }
+
+        async function beautifyB() {
+            let res = await fetch("/formatxml", { method: "POST", body: xmlB.value });
+            xmlB.value = await res.text();
+        }
+
+        async function formatOnly() {
+            let res = await fetch("/formatxml", { method: "POST", body: formatterInput.value });
+            formatterOutput.textContent = await res.text();
+        }
+
+        function swapXml() {
+
+            let t = xmlA.value;
+            xmlA.value = xmlB.value;
+            xmlB.value = t;
+
+            let l = originalModel.getValue();
+            let r = modifiedModel.getValue();
+
+            originalModel.setValue(r);
+            modifiedModel.setValue(l);
+
+            let fn = fileNameA.innerText;
+            fileNameA.innerText = fileNameB.innerText;
+            fileNameB.innerText = fn;
+
+        }
+
+        function acceptRight() {
+            originalModel.setValue(modifiedModel.getValue());
+        }
+
+        function clearAll() {
+
+            xmlA.value = "";
+            xmlB.value = "";
+            fileNameA.innerText = "";
+            fileNameB.innerText = "";
+
+            originalModel.setValue("");
+            modifiedModel.setValue("");
+
+            fileInputA.value = "";
+            fileInputB.value = "";
+
+        }
+
+        function loadFileA(e) {
+            let f = e.target.files[0];
+            if (!f) return;
+            fileNameA.innerText = f.name;
+            let r = new FileReader();
+            r.onload = x => xmlA.value = x.target.result;
+            r.readAsText(f);
+        }
+
+        function loadFileB(e) {
+            let f = e.target.files[0];
+            if (!f) return;
+            fileNameB.innerText = f.name;
+            let r = new FileReader();
+            r.onload = x => xmlB.value = x.target.result;
+            r.readAsText(f);
+        }
+
+        setupDrop("dropA", "xmlA", "fileNameA");
+        setupDrop("dropB", "xmlB", "fileNameB");
+
+        function setupDrop(id, ta, fileLabel) {
+
+            let zone = document.getElementById(id);
+
+            zone.ondragover = e => {
+                e.preventDefault();
+                zone.style.background = "#1f2937";
+            };
+
+            zone.ondragleave = e => {
+                zone.style.background = "";
+            };
+
+            zone.ondrop = e => {
+                e.preventDefault();
+                zone.style.background = "";
+                let f = e.dataTransfer.files[0];
+                if (!f) return;
+                document.getElementById(fileLabel).innerText = f.name;
+                let r = new FileReader();
+                r.onload = x => document.getElementById(ta).value = x.target.result;
+                r.readAsText(f);
+            };
+
+        }
+
+    </script>
+
+</body>
+</html>
